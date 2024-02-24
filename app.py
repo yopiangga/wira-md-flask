@@ -19,17 +19,16 @@ import mahotas as mh
 import tensorflow as tf
 import cv2
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
+import pydicom
 
-from skimage.feature import graycomatrix, graycoprops
-
+dir_image = "/home/yopiangga/Documents/Kuliah/PA/riset/upload-file/uploads/jpg/"
 dir = ""
 
 app = Flask(__name__)
 CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
-model = load_model(dir + 'model/stroke_classification_model.h5')
+model = load_model(dir + 'model/1.1 Model VIT B16 WP 50E Dense 64.h5')
 
 @app.route('/')
 @cross_origin()
@@ -43,7 +42,7 @@ def prediction():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'})
 
-    file = request.files['file']
+    file = request.files['image']
 
     if file.filename == '':
         return jsonify({'error': 'No selected file'})
@@ -51,9 +50,15 @@ def prediction():
     file_data = file.read()
 
     file_object = BytesIO(file_data)
-    image = Image.open(file_object)
+    im = pydicom.dcmread(file_object)
+    im = im.pixel_array.astype(float)
 
-    img_width, img_height = 224, 224
+    rescaled_image = (np.maximum(im,0)/im.max()) * 255
+    image = np.uint8(rescaled_image)
+    image = Image.fromarray(image)
+    image.save(dir_image + name_image + '.jpg')
+
+    img_width, img_height = 384, 384
 
     target_size = (img_width, img_height)
     img = image.resize(target_size)
@@ -66,37 +71,18 @@ def prediction():
 
     morphological_image = image_to_morphological(threshold_image)
 
-    img = Image.fromarray(morphological_image)
-    img.save(dir + 'temp/1.jpg')
+    image_array = tf.keras.preprocessing.image.img_to_array(image)
+    image_array = tf.expand_dims(image_array, 0)  # Add batch dimension
+    image_array /= 255.0  
+    
+    # Get the predicted class index
+    predicted_class_index = np.argmax(prediction[0])
 
-    feature = calculate_glcm_features(dir + "temp/1.jpg")
+    # Map the index to class labels (assuming you have a list of class labels)
+    class_labels = ["normal", "hemorrhagic", "ischemic"]  # Replace with your actual class labels
+    predicted_class_label = class_labels[predicted_class_index]
 
-    feature_standart_array = standarization(feature)
-
-    res_predict = model.predict(feature_standart_array)
-
-    res_max_index = np.argmax(res_predict)
-
-    res_class = ""
-
-    if (res_max_index == 0):
-        res_class = "normal"
-    elif (res_max_index == 1):
-        res_class = "hemorrhagic"
-    elif (res_max_index == 2):
-        res_class = "ischemic"
-    else:
-        res_class = "undefined"
-
-    return jsonify(res_class)
-
-def load_image_from_base64(base64_string, target_size):
-    encoded_data = base64_string.split(',')[1]
-    image_bytes = base64.b64decode(encoded_data)
-
-    img = image.load_img(BytesIO(image_bytes), target_size=target_size)
-
-    return img
+    return jsonify(predicted_class_label)
 
 def image_to_grayscale(img):
     gray_image = img.convert("L")
@@ -118,42 +104,6 @@ def image_to_morphological(img, kernel_size=3):
     opened_image = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel)
     return opened_image
 
-def calculate_glcm_features(image_path):
-    image = Image.open(image_path)
-    gray_image = image.convert("L")
-    gray_array = np.array(gray_image)
-
-    # Hitung GLCM
-    distances = [1]  # Jarak antara piksel
-    angles = [0]     # Sudut
-    glcm = graycomatrix(gray_array, distances=distances, angles=angles, symmetric=True, normed=True)
-
-    # Ekstraksi fitur dari GLCM
-    contrast = graycoprops(glcm, 'contrast')[0, 0]
-    dissimilarity = graycoprops(glcm, 'dissimilarity')[0, 0]
-    homogeneity = graycoprops(glcm, 'homogeneity')[0, 0]
-    correlation = graycoprops(glcm, 'correlation')[0, 0]
-    angular = graycoprops(glcm, 'ASM')[0, 0]
-    energy = graycoprops(glcm, 'energy')[0, 0]
-
-    return [contrast, dissimilarity, homogeneity, correlation, angular, energy]
-
-def standarization(feature):
-    features = np.load(dir + "feature/1.1 features.npy")
-    features = np.append(features, [feature], axis=0)
-
-    df = pd.DataFrame(features)
-
-    scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(df)
-    scaled_df = pd.DataFrame(scaled_data, columns=df.columns)
-
-    feature_standart = scaled_df.iloc[-1]
-    feature_standart_flatten = feature_standart.values.flatten()
-
-    feature_standart_array = np.array([feature_standart_flatten])
-
-    return feature_standart_array
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
