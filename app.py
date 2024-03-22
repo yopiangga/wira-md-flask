@@ -55,8 +55,8 @@ def prediction():
     image = np.uint8(rescaled_image)
     image = Image.fromarray(image)
     image = image.convert("RGB")
-    nameImage = str(time.time())
-    image.save(nameImage + '.jpg')
+    nameImage = request.form.get('name')
+    image.save(jpg_path + nameImage + '.jpg')
 
     image_array = tf.keras.preprocessing.image.img_to_array(image)
     image_array = tf.keras.preprocessing.image.smart_resize(image_array, (384, 384))
