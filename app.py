@@ -12,6 +12,7 @@ from PIL import Image
 import numpy as np
 import tensorflow as tf
 import pydicom
+import cv2
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
@@ -20,19 +21,25 @@ CORS(app)
 
 app.config['CORS_HEADERS'] = 'Content-Type'
 
-dir_self = os.environ.get("DIR_SELF", default="true")
-dir_express = os.environ.get("DIR_EXPRESS", default="true")
+# dir_self = os.environ.get("DIR_SELF")
+# dir_express = os.environ.get("DIR_EXPRESS")
 
-model_path = dir_self + "model/model_vit"
-jpg_path = dir_express + "uploads/medical-record/jpg/"
-segmented_path = dir_express + "uploads/medical-record/segmented/"
+dir_self = "/home/yopiangga/Documents/Kuliah/PA/code/prisma-flask/"
+dir_express = "/home/yopiangga/Documents/Kuliah/PA/code/prisma-express-orm/"
+
+model_path = str(dir_self) + "model/1.1 Best Model VIT_0.9622_0.9837"
+model_segmentation_path = str(dir_self) + "model/model_unet_segmentation_9"
+
+jpg_path = str(dir_express) + "uploads/medical-record/jpg/"
+segmented_path = str(dir_express) + "uploads/medical-record/segmented/"
 
 model = load_model(model_path)
+model_segmentation = load_model(model_segmentation_path)
 
 @app.route('/')
 @cross_origin()
 def home():
-    return "home"
+    return dir_self
 
 @app.route('/prediction', methods=['POST'])
 @cross_origin()
@@ -65,9 +72,15 @@ def prediction():
 
     prediction = model.predict(image_array)
 
+    prediction_segmentation = model_segmentation.predict(image_array)
+    image_segmented = prediction_segmentation[0]
+
+    image_segmented = image_segmented * 255
+    cv2.imwrite(segmented_path + nameImage + '.jpg', image_segmented)
+
     predicted_class_index = np.argmax(prediction[0])
 
-    class_labels = ["normal", "hemorrhagic", "ischemic"]
+    class_labels = ["ischemic", "hemorrhagic", "normal"]
     predicted_class_label = class_labels[predicted_class_index]
 
     return jsonify(predicted_class_label)
