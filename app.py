@@ -24,10 +24,11 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 # dir_self = os.environ.get("DIR_SELF")
 # dir_express = os.environ.get("DIR_EXPRESS")
 
-dir_self = "/home/yopiangga/Documents/Kuliah/PA/code/prisma-flask/"
-dir_express = "/home/yopiangga/Documents/Kuliah/PA/code/prisma-express-orm/"
+dir_self = "/home/yopiangga/Documents/Kuliah/Lomba/51 KMIPN/code/wira-md-flask/"
+dir_express = "/home/yopiangga/Documents/Kuliah/Lomba/51 KMIPN/code/wira-md-express/"
 
-model_path = str(dir_self) + "model/1.1 Best Model VIT_0.9622_0.9837"
+# model_path = str(dir_self) + "model/1.1 Best Model VIT_0.9622_0.9837"
+model_path = str(dir_self) + "model/2.1 Best Model VIT_0.9689_0.8592"
 model_segmentation_path = str(dir_self) + "model/model_unet_segmentation_9"
 
 jpg_path = str(dir_express) + "uploads/medical-record/jpg/"
